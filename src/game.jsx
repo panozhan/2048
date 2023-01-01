@@ -1,5 +1,6 @@
 import React, { useEffect, useReducer } from "react";
-import './game.scss';
+import { mergeUp, mergeDown, mergeRight, mergeLeft, getRandomRowColThatFits, isValuesEqual, isGameOver } from "./utils";
+import './game.scss'; // ==> document.getElementByTagName('head').addChild('style')
 import CONSTANTS from './constants';
 
 /**
@@ -13,151 +14,39 @@ import CONSTANTS from './constants';
  *      4. 
  */
 function reducer(state, action) {
-    if (action.type !== 'keydown') {
-        return;
-    }
-    /**
-     * For an ordered set of tiles a tile A at position i is eligible to be moved 
-     * based on the following conditions
-     *      Tile A cannot be moved if it's 0
-     *      Tile A can be moved if one of the conditions hold. The rule for moving should be 
-     *      applied in the order of the listed conditions:
-     *          1. A tile B at position j with value equal to the value of A exists, where j < i, and 
-     *             all tiles C at positions k where j < k < i have values of 0 
-     *              - If this condition holds, move Tile A to Tile B, and make the value
-     *                of Tile B equal to 2 * Tile B.
-     *          2. If one or more tiles B at positions j with value equal to 0, and all tiles C at positions k 
-     *             where j < k < i also has a value equal to 0, move tile A to one of such tiles with the smallest j.
-     */
-    console.log('reducer before', state, action.key);
-    const newValues = Array.from(Array(state.boardSize), () => new Array(state.boardSize).fill(0));
-    const values = state.values;
-    if (action.key === CONSTANTS.ARROW_LEFT || action.key === CONSTANTS.ARROW_RIGHT) {
-        for (let i = 0; i < values.length; ++i) {
-            const canMerge = Array(values[i].length).fill(true);
-            if (action.key === CONSTANTS.ARROW_LEFT) {
-                newValues[i][0] = values[i][0]; 
-                for (let j = 1; j < values[i].length; ++j) {
-                    if (values[i][j] !== 0) {
-                        let furthestMoveableIndex = -1;
-                        for (let k = j - 1; k >= 0; --k) {
-                            if (newValues[i][k] === values[i][j] && canMerge[k]) {
-                                newValues[i][k] *= 2;
-                                // TODO: include border in this calculation
-                                canMerge[k] = false;
-                                furthestMoveableIndex = -1;
-                                break;
-                            } else if (newValues[i][k] === 0) {
-                                furthestMoveableIndex = k;
-                            } else {
-                                break;
-                            }
-                        }
-                        if (furthestMoveableIndex !== -1) {
-                            newValues[i][furthestMoveableIndex] = values[i][j];
-                        }
-                    }
-                }
-            } else {
-                newValues[i][state.boardSize - 1] = values[i][state.boardSize - 1]; 
-                for (let j = state.boardSize - 2; j >= 0; --j) {
-                    if (values[i][j] !== 0) {
-                        let furthestMoveableIndex = -1;
-                        for (let k = j + 1; k < state.boardSize; ++k) {
-                            if (newValues[i][k] === values[i][j] && canMerge[k]) {
-                                newValues[i][k] *= 2;
-                                canMerge[k] = false;
-                                furthestMoveableIndex = -1;
-                                break;
-                            } else if (newValues[i][k] === 0) {
-                                furthestMoveableIndex = k;
-                            } else {
-                                break;
-                            }
-                        }
-                        if (furthestMoveableIndex !== -1) {
-                            newValues[i][furthestMoveableIndex] = values[i][j];
-                        }
-                    }
-                }
-            }
-        } 
-    } else {
-        for (let i = 0; i < values[0].length; ++i) {
-            const canMerge = Array(values[i].length).fill(true);
-            if (action.key === CONSTANTS.ARROW_UP) {
-                newValues[0][i] = values[0][i]; 
-                for (let j = 1; j < values.length; ++j) {
-                    if (values[j][i] !== 0) {
-                        let furthestMoveableIndex = -1;
-                        for (let k = j - 1; k >= 0; --k) {
-                            if (newValues[k][i] === values[j][i] && canMerge[k]) {
-                                newValues[k][i] *= 2;
-                                // TODO: include border in this calculation
-                                canMerge[k] = false;
-                                furthestMoveableIndex = -1;
-                                break;
-                            } else if (newValues[k][i] === 0) {
-                                furthestMoveableIndex = k;
-                            } else {
-                                break;
-                            }
-                        }
-                        if (furthestMoveableIndex !== -1) {
-                            newValues[furthestMoveableIndex][i] = values[j][i];
-                        }
-                        console.log(furthestMoveableIndex, canMerge, values, newValues);
-                    }
-                }
-            } else {
-                newValues[state.boardSize - 1][i] = values[state.boardSize - 1][i]; 
-                for (let j = state.boardSize - 2; j >= 0; --j) {
-                    if (values[j][i] !== 0) {
-                        let furthestMoveableIndex = -1;
-                        for (let k = j + 1; k < state.boardSize; ++k) {
-                            if (newValues[k][i] === values[j][i] && canMerge[k]) {
-                                newValues[k][i] *= 2;
-                                canMerge[k] = false;
-                                furthestMoveableIndex = -1;
-                                break;
-                            } else if (newValues[k][i] === 0) {
-                                furthestMoveableIndex = k;
-                            } else {
-                                console.log('here');
-                                break;
-                            }
-                        }
-                        if (furthestMoveableIndex !== -1) {
-                            newValues[furthestMoveableIndex][i] = values[j][i];
-                        }
-                    }
-                }
-            }
-        }
+    if (action.type === 'new-game') {
+        return init(state.boardSize);
     }
     
-    for (let i = 0; i < values.length; ++i) {
-        for (let j = 0; j < values[i].length; ++j) {
-            if (values[i][j] !== newValues[i][j]) {
-                let randomRow;
-                let randomCol;
-                do {
-                    randomRow = Math.floor(Math.random() * state.boardSize);
-                    randomCol = Math.floor(Math.random() * state.boardSize);
-                } while (newValues[randomRow][randomCol] !== 0)
-                newValues[randomRow][randomCol] = 2;
-                console.log('reducer after', newValues);
-                return {
-                    ...state,
-                    values: newValues,
-                }
-            }
-        }
+    if (state.gameOver) {
+        return state;
+    }
+
+    let newValues;
+    switch (action.key) {
+        case CONSTANTS.ARROW_LEFT:
+            newValues = mergeLeft(state.values);
+            break;
+        case CONSTANTS.ARROW_RIGHT:
+            newValues = mergeRight(state.values);
+            break;
+        case CONSTANTS.ARROW_UP:
+            newValues = mergeUp(state.values);
+            break;
+        case CONSTANTS.ARROW_DOWN:
+            newValues = mergeDown(state.values);
+            break;
+    }
+
+    if (!isValuesEqual(state.values, newValues)) {
+        const [row, col] = getRandomRowColThatFits(newValues);
+        newValues[row][col] = 2;
     }
 
     const result = {
         ...state,
-        values: newValues
+        values: newValues,
+        gameOver: isGameOver(newValues)
     };
 
     return result;
@@ -168,16 +57,13 @@ function init(boardSize) {
     const randomRow = Math.floor(Math.random() * boardSize);
     const randomCol = Math.floor(Math.random() * boardSize);
     values[randomRow][randomCol] = 2;
-    let secondRandomRow;
-    let secondRandomCol;
-    do {
-        secondRandomRow = Math.floor(Math.random() * boardSize);
-        secondRandomCol = Math.floor(Math.random() * boardSize);
-    } while (secondRandomRow === randomRow && secondRandomCol === randomCol)
+
+    const [secondRandomRow, secondRandomCol] = getRandomRowColThatFits(values);
     values[secondRandomRow][secondRandomCol] = 2;
     return {
         boardSize,
         values,
+        gameOver: false,
     }
 }
  
@@ -199,13 +85,19 @@ function Game({boardSize}) {
                 {
                     row.map((value, colIndex) => <div key={colIndex} className="tile">
                         <div className="inner-tile" style={{ 
-                            backgroundColor: CONSTANTS.COLOR.get(value)}}>
+                            backgroundColor: CONSTANTS.COLOR.get(value),
+                            opacity: state.gameOver? '20%' : '100%'}}>
                             {value !== 0 && <span>{value}</span>}
                         </div>
                     </div>)
                 }
             </div>
         )}
+        {state.gameOver && <div id="game-over">
+            <div><span>You Lost</span></div>
+            
+            <button id='new-game' onClick={()=>dispatch({type:'new-game'})}>New Game</button>
+        </div>}
     </div>;
 }
 
