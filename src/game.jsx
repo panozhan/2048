@@ -1,18 +1,8 @@
 import React, { useEffect, useReducer } from "react";
 import { mergeUp, mergeDown, mergeRight, mergeLeft, getRandomRowColThatFits, isValuesEqual, isGameOver } from "./utils";
-import './game.scss'; // ==> document.getElementByTagName('head').addChild('style')
+import './game.scss';
 import CONSTANTS from './constants';
 
-/**
- * Sequence of events:
- *      1. User taps key
- *      2. Determine which tiles move (synchronous)
- *      3. Animate movements
- *          a. tiles moving
- *          b. tiles merging - this is a visual 
- *              i. reset tiles that have moved to th
- *      4. 
- */
 function reducer(state, action) {
     if (action.type === 'new-game') {
         return init(state.boardSize);
@@ -69,14 +59,13 @@ function init(boardSize) {
  
 function Game({boardSize}) {
     const [state, dispatch] = useReducer(reducer, boardSize, init);
-    function keyDown(e) {
-        if (CONSTANTS.KEYS_TO_LISTEN.indexOf(e.key) !== -1) {
-            dispatch({type:'keydown', key: e.key});
-        }
-    };   
     
     useEffect(() => {
-        document.addEventListener('keydown', keyDown);
+        document.addEventListener('keydown', e => {
+            if (CONSTANTS.KEYS_TO_LISTEN.indexOf(e.key) !== -1) {
+                dispatch({type:'keydown', key: e.key});
+            }
+        });
     }, []);
 
     return <div id="board">
@@ -86,7 +75,7 @@ function Game({boardSize}) {
                     row.map((value, colIndex) => <div key={colIndex} className="tile">
                         <div className="inner-tile" style={{ 
                             backgroundColor: CONSTANTS.COLOR.get(value),
-                            opacity: state.gameOver? '20%' : '100%'}}>
+                            opacity: state.gameOver? '50%' : '100%'}}>
                             {value !== 0 && <span>{value}</span>}
                         </div>
                     </div>)
